@@ -5,8 +5,8 @@ Description: RAG+ Platform Serverless Tier
 Resources:
   DocumentStorageBucket:
     Type: AWS::S3::Bucket
+    DependsOn: IngestionQueuePolicy
     Properties:
-      # Omit BucketName so AWS generates a globally unique identifier automatically for us
       NotificationConfiguration:
         QueueConfigurations:
           - Event: s3:ObjectCreated:*
@@ -31,8 +31,8 @@ Resources:
             Action: sqs:SendMessage
             Resource: !GetAtt IngestionQueue.Arn
             Condition:
-              ArnLike:
-                aws:SourceArn: !GetAtt DocumentStorageBucket.Arn
+              StringEquals:
+                aws:SourceAccount: !Sub ${AWS::AccountId}
 
   IngestionWorkerFunction:
     Type: AWS::Serverless::Function
