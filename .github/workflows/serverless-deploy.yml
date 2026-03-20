@@ -41,4 +41,5 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --resolve-s3
+            --resolve-s3 \
+            --parameter-overrides DatabaseUrl="${{ secrets.DATABASE_URL }}" OpenAIApiKey="${{ secrets.OPENAI_API_KEY }}"

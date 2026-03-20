@@ -2,11 +2,40 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: RAG+ Platform Serverless Tier
 
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: PostgreSQL connection string with pgvector support
+    NoEcho: true
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API key for embeddings and LLM reasoning
+    NoEcho: true
+
+Globals:
+  Function:
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        OPENAI_API_KEY: !Ref OpenAIApiKey
+
 Resources:
   DocumentStorageBucket:
     Type: AWS::S3::Bucket
     DependsOn: IngestionQueuePolicy
     Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - POST
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - '*' # Unrestricted for MVP; tighten explicitly to domain in prod
+            MaxAge: 3000
       NotificationConfiguration:
         QueueConfigurations:
           - Event: s3:ObjectCreated:*

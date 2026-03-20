@@ -17,7 +17,8 @@ export default function Home() {
     setUploading(true);
     try {
       // 1. Get presigned URL from FastAPI backend
-      const res = await fetch(`http://localhost:8000/api/v1/documents/upload-url?filename=${encodeURIComponent(file.name)}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/v1/documents/upload-url?filename=${encodeURIComponent(file.name)}`, {
         method: 'POST'
       });
       const data = await res.json();
