@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RAG+ Platform Serverless Tier
+
+Resources:
+  IngestionWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ingestion/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 300
+      MemorySize: 2048 # High memory for embedding generation
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt IngestionQueue.Arn
+            BatchSize: 1
+
+  ReasoningEngineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: reasoning/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 2048 # LangGraph evaluation and remote LLM calls
+
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: rag-document-ingestion-queue
+      VisibilityTimeout: 300

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.env
+
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# IDE / macOS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# AWS SAM Serverless
+.aws-sam/
+packaged.yaml
