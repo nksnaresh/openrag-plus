@@ -3,6 +3,37 @@ Transform: AWS::Serverless-2016-10-31
 Description: RAG+ Platform Serverless Tier
 
 Resources:
+  DocumentStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      # Omit BucketName so AWS generates a globally unique identifier automatically for us
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: raw/
+            Queue: !GetAtt IngestionQueue.Arn
+
+  IngestionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref IngestionQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt IngestionQueue.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !GetAtt DocumentStorageBucket.Arn
+
   IngestionWorkerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -10,7 +41,10 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.11
       Timeout: 300
-      MemorySize: 2048 # High memory for embedding generation
+      MemorySize: 2048
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DocumentStorageBucket
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -25,10 +59,15 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.11
       Timeout: 900
-      MemorySize: 2048 # LangGraph evaluation and remote LLM calls
+      MemorySize: 2048
 
   IngestionQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: rag-document-ingestion-queue
       VisibilityTimeout: 300
+
+Outputs:
+  DocumentBucketName:
+    Description: Generated S3 Bucket Name for document uploads
+    Value: !Ref DocumentStorageBucket
