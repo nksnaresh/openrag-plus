@@ -1,13 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<{role: string, content: string, citations?: string[], trace?: string[]}[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mocking the FastAPI /query endpoint which hits the Lambda underlying LangGraph
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(true);
+    try {
+      // 1. Get presigned URL from FastAPI backend
+      const res = await fetch(`http://localhost:8000/api/v1/documents/upload-url?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.detail || 'Failed to get upload URL');
+      
+      const { upload_url } = data;
+      
+      // 2. Upload file directly to S3 Bucket via signed URL
+      const s3Res = await fetch(upload_url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': 'application/pdf'
+        }
+      });
+      
+      if (s3Res.ok) {
+        alert("Upload successful! Your document is now securely on AWS S3, triggering the Serverless ingestion pipeline.");
+      } else {
+        alert("Upload to S3 failed. Please verify your AWS IAM bucket permissions.");
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query) return;
@@ -17,7 +57,7 @@ export default function Home() {
     setQuery("");
     
     try {
-      // MOCK of actual reasoning execution output for MVP UI visualization
+      // MOCK of actual LangGraph execution output for UI visualization
       setTimeout(() => {
         setMessages(prev => [...prev, { 
           role: "assistant", 
@@ -40,15 +80,24 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Sidebar for Documents */}
       <div className="w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col">
         <h2 className="text-2xl font-bold mb-8 text-indigo-600">RAG+</h2>
         
         <div className="mb-8">
           <h3 className="font-semibold text-gray-700 mb-4">Document Ingestion</h3>
-          <div className="p-6 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:bg-gray-50 transition-colors">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload}
+            className="hidden" 
+            accept=".pdf,.txt,.md"
+          />
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-6 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:bg-gray-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+          >
             <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-            <span className="text-sm text-gray-600 font-medium">Upload Document to S3</span>
+            <span className="text-sm text-gray-600 font-medium">{uploading ? 'Uploading to Live S3...' : 'Upload Document to AWS'}</span>
             <p className="text-xs text-gray-400 mt-1">Triggers async SQS Lambda</p>
           </div>
         </div>
@@ -66,16 +115,10 @@ export default function Home() {
               <span className="flex-1 truncate">HR_Policy_2026.docx</span>
               <span className="text-xs text-gray-400">Ready</span>
             </li>
-            <li className="flex items-center p-2 hover:bg-gray-50 rounded-md">
-              <span className="w-2 h-2 rounded-full bg-yellow-500 mr-3 animate-pulse"></span> 
-              <span className="flex-1 truncate">Technical_Architecture.md</span>
-              <span className="text-xs text-gray-400">Indexing</span>
-            </li>
           </ul>
         </div>
       </div>
 
-      {/* Main Chat Interface */}
       <div className="flex-1 flex flex-col">
         <div className="p-6 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between z-10">
           <h1 className="text-xl font-semibold text-gray-800">Reasoning Workspace</h1>
@@ -151,7 +194,7 @@ export default function Home() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-6 pr-32 py-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm text-gray-800 bg-gray-50 hover:bg-white transition-colors"
-              placeholder="E.g., Based on the Q3 financials, what are the primary risk factors?"
+              placeholder="Ask a question..."
               disabled={loading}
             />
             <button 
@@ -162,9 +205,6 @@ export default function Home() {
               Analyze
             </button>
           </form>
-          <div className="text-center mt-3">
-            <span className="text-xs text-gray-400">RAG+ Answers are AI-generated via multi-step verification, but always review output accuracy.</span>
-          </div>
         </div>
       </div>
     </div>

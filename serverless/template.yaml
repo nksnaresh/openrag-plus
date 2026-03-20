@@ -39,7 +39,7 @@ Resources:
     Properties:
       CodeUri: ingestion/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 300
       MemorySize: 2048
       Policies:
@@ -57,7 +57,7 @@ Resources:
     Properties:
       CodeUri: reasoning/
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 2048
 

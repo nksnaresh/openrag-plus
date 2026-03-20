@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           
       - name: Setup AWS SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -27,7 +27,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # Defaults to us-east-1, change as needed
+          aws-region: us-east-1
 
       - name: SAM Build
         working-directory: ./serverless
